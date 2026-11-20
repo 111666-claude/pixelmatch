@@ -47,11 +47,30 @@ Omit `WriteTo` when only the count is needed.
 | `checkerboard` | `Checkerboard(bool)` | `true`; controls the background for semi-transparent comparison. |
 | `windowSize` | `WindowSize(float64)` | `+Inf`; finite values return the largest diff count in any square sliding window. |
 | `ignoreMask` | `IgnoreMask([]byte)` | `nil`; nonzero bytes skip comparison and draw the pixel as unchanged. |
+| — (Go only) | `Regions(*[]Region, RegionConfig)` | Off; reports connected diff regions with bounds and pixel counts. |
 
 Marker colors use RGB and are always opaque. The ignore mask must contain one
 byte per pixel in row order (`width * height`), or `MatchPixel` returns
 `ErrIgnoreMaskSizeNotMatch`. Ignored pixels still participate in neighboring
 anti-alias detection, as in upstream.
+
+`Regions` groups the same differing pixels the count is based on, so it never
+changes the returned count or the `WriteTo` output. `RegionConfig` selects 4-
+or 8-connectivity, a minimum region size (`MinPixels`), and bounding-box gap
+merging (`MergeGap`). Regions are sorted by bounds and are deterministic;
+pixels excluded by the ignore mask or anti-aliasing detection belong to no
+region and never connect two regions.
+
+```go
+var regions []pixelmatch.Region
+count, err := pixelmatch.MatchPixel(img1, img2,
+    pixelmatch.Regions(&regions, pixelmatch.RegionConfig{
+        Connectivity: 8,
+        MinPixels:    4,
+        MergeGap:     2,
+    }),
+)
+```
 
 Window sizes are floored and clamped to `1..min(width, height)`. For example,
 `WindowSize(32)` on a 10×2 image uses a 2×2 window. Non-finite sizes return the

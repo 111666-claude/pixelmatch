@@ -24,6 +24,8 @@ type MatchOptions struct {
 	windowSize       float64
 	ignoreMask       []byte
 	writeTo          *image.Image
+	regions          *[]Region
+	regionConfig     RegionConfig
 }
 
 type MatchOption func(*MatchOptions)
@@ -185,12 +187,15 @@ func MatchPixel(a, b image.Image, opts ...MatchOption) (int, error) {
 		if options.writeTo != nil {
 			*options.writeTo = out
 		}
+		if options.regions != nil {
+			*options.regions = []Region{}
+		}
 		return 0, nil
 	}
 
 	diff := 0
 	var diffPixels []byte
-	if !math.IsInf(options.windowSize, 0) && !math.IsNaN(options.windowSize) {
+	if options.regions != nil || (!math.IsInf(options.windowSize, 0) && !math.IsNaN(options.windowSize)) {
 		diffPixels = make([]byte, rect.Dx()*rect.Dy())
 	}
 
@@ -274,7 +279,11 @@ func MatchPixel(a, b image.Image, opts ...MatchOption) (int, error) {
 		*options.writeTo = out
 	}
 
-	if diffPixels != nil && diff != 0 {
+	if options.regions != nil {
+		*options.regions = diffRegions(diffPixels, rect.Dx(), rect.Dy(), rect.Min, options.regionConfig)
+	}
+
+	if !math.IsInf(options.windowSize, 0) && !math.IsNaN(options.windowSize) && diff != 0 {
 		return maxWindowDiff(diffPixels, rect.Dx(), rect.Dy(), options.windowSize), nil
 	}
 	return diff, nil
